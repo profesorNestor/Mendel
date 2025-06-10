@@ -30,6 +30,12 @@
         .panel h3 { margin: 10px 0 5px 0; color: #9ca3af; text-transform: uppercase; font-size: 0.9em; }
         .plant-card { width: 100%; text-align: center; }
         .plant-visual { width: 150px; height: 150px; margin: 0 auto; border: 2px dashed var(--border-color); border-radius: 12px; }
+        .phenotype-description {
+            font-style: italic; color: #cbd5e1; height: 4.5em; /* Fixed height for 3 lines */
+            margin-top: 10px; margin-bottom: 5px; font-size: 0.9em;
+            transition: opacity 0.3s ease; text-align: center;
+            display: flex; align-items: center; justify-content: center;
+        }
         .genotype-selector { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap;}
         .genotype-selector button {
             background: #374151; color: var(--text-color); border: 1px solid #4b5563;
@@ -103,12 +109,14 @@
                 <div class="plant-card">
                     <div id="parent1-visual" class="plant-visual"></div>
                     <h3>Color de Flor (A)</h3>
+                    <p id="parent1-color-description" class="phenotype-description"></p>
                     <div id="p1-color-selector" class="genotype-selector">
                         <button data-parent="1" data-trait="color" data-genotype="AA" class="active">AA</button>
                         <button data-parent="1" data-trait="color" data-genotype="Aa">Aa</button>
                         <button data-parent="1" data-trait="color" data-genotype="aa">aa</button>
                     </div>
                     <h3>Altura de Tallo (T)</h3>
+                    <p id="parent1-height-description" class="phenotype-description"></p>
                     <div id="p1-height-selector" class="genotype-selector">
                         <button data-parent="1" data-trait="height" data-genotype="TT" class="active">TT</button>
                         <button data-parent="1" data-trait="height" data-genotype="Tt">Tt</button>
@@ -127,12 +135,14 @@
                 <div class="plant-card">
                     <div id="parent2-visual" class="plant-visual"></div>
                     <h3>Color de Flor (A)</h3>
+                    <p id="parent2-color-description" class="phenotype-description"></p>
                     <div id="p2-color-selector" class="genotype-selector">
                         <button data-parent="2" data-trait="color" data-genotype="AA" class="active">AA</button>
                         <button data-parent="2" data-trait="color" data-genotype="Aa">Aa</button>
                         <button data-parent="2" data-trait="color" data-genotype="aa">aa</button>
                     </div>
                     <h3>Altura de Tallo (T)</h3>
+                    <p id="parent2-height-description" class="phenotype-description"></p>
                     <div id="p2-height-selector" class="genotype-selector">
                         <button data-parent="2" data-trait="height" data-genotype="TT" class="active">TT</button>
                         <button data-parent="2" data-trait="height" data-genotype="Tt">Tt</button>
@@ -182,10 +192,8 @@ let audioStarted = false;
 
 // The p5.js global setup function. This runs once after the DOM is ready and p5 is loaded.
 function setup() {
-    // We don't need a global canvas, the sketches for plants are created in instance mode.
     noCanvas();
     
-    // Initialize sounds now that p5.sound is guaranteed to be ready.
     sounds.click = new p5.Oscillator('sine');
     sounds.click.freq(880); sounds.click.amp(0); sounds.click.start();
     sounds.click.play = () => { sounds.click.amp(0.3, 0.01); sounds.click.amp(0, 0.1, 0.05); };
@@ -198,7 +206,6 @@ function setup() {
     sounds.grow.amp(0); sounds.grow.start();
     sounds.grow.play = () => { sounds.grow.amp(0.1, 0.1); sounds.grow.amp(0, 0.5, 0.2); };
 
-    // Set up all event listeners here.
     document.querySelectorAll('.genotype-selector button').forEach(button => button.addEventListener('click', handleGenotypeSelection));
     document.getElementById('cross-btn').addEventListener('click', handleCross);
     
@@ -206,15 +213,17 @@ function setup() {
     document.getElementById('modal-close-btn').onclick = () => modal.classList.remove('visible');
     modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('visible'); };
 
-    // Initial UI setup.
     createPunnettGrid();
     for (let i = 0; i < 16; i++) {
         document.getElementById('offspring-garden').appendChild(document.createElement('div')).className = 'pot';
     }
     
-    // Draw the initial parent plants.
     updateParentVisual('1', parent1Genotype);
     updateParentVisual('2', parent2Genotype);
+    updatePhenotypeDescription('1', 'color', 'AA');
+    updatePhenotypeDescription('1', 'height', 'TT');
+    updatePhenotypeDescription('2', 'color', 'AA');
+    updatePhenotypeDescription('2', 'height', 'TT');
 }
 
 const plantSketch = (phenotype) => (p) => {
@@ -295,12 +304,36 @@ function updateParentVisual(parentNum, genotype) {
 
 function startAudioContext() {
     if (!audioStarted) {
-        if (getAudioContext().state !== 'running') {
-            getAudioContext().resume();
+        if (typeof userStartAudio === 'function') {
+           userStartAudio();
         }
         audioStarted = true;
     }
 }
+
+function updatePhenotypeDescription(parentNum, trait, genotype) {
+    const messages = {
+        color: {
+            AA: 'Una flor de un púrpura intenso, un color que domina el jardín.',
+            Aa: 'Portadora de la herencia recesiva, esta flor luce un majestuoso color púrpura.',
+            aa: 'Pura y delicada, esta flor muestra un blanco nieve que resalta en la naturaleza.'
+        },
+        height: {
+            TT: 'Con un tallo que se alza orgulloso, buscando siempre la luz.',
+            Tt: 'Fuerte y alta, esta planta lleva en su interior el gen de una estatura más baja.',
+            tt: 'Compacta y robusta, una planta de tallo bajo que concentra su belleza cerca del suelo.'
+        }
+    };
+    const descriptionElement = document.getElementById(`parent${parentNum}-${trait}-description`);
+    if (descriptionElement) {
+        descriptionElement.style.opacity = 0;
+        setTimeout(() => {
+            descriptionElement.innerText = messages[trait][genotype];
+            descriptionElement.style.opacity = 1;
+        }, 200);
+    }
+}
+
 
 function handleGenotypeSelection(event) {
     startAudioContext();
@@ -314,6 +347,7 @@ function handleGenotypeSelection(event) {
     event.target.classList.add('active');
 
     updateParentVisual(parent, parent === '1' ? parent1Genotype : parent2Genotype);
+    updatePhenotypeDescription(parent, trait, genotype);
 }
 
 function createPunnettGrid() {
@@ -429,7 +463,6 @@ function handleCross() {
     }, timeouts.length * 50 + 1100);
     currentAnimationTimeouts.push(finalTimeout);
 }
-
 </script>
 </body>
 </html>
